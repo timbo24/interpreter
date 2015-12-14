@@ -248,6 +248,21 @@
                         (type-case FieldT field
                           [fieldT (name type) type]))]
                 [else (type-error obj-expr "object")])]
+        [setI (obj-expr field-name arg-expr)
+              (type-case Type (recur obj-expr)
+                [objT (class-name)
+                      (local [(define t-class
+                                (find-classT class-name t-classes))
+                              (define field
+                                (find-field-in-tree field-name
+                                                    t-class
+                                                    t-classes))]
+                        (type-case FieldT field
+                          [fieldT (name type)
+                                  (if (is-subtype? (recur arg-expr) type t-classes)
+                                      (numT)
+                                      (type-error arg-expr "not a subtype"))]))]
+                [else (type-error obj-expr "object")])]
         [sendI (obj-expr method-name arg-expr)
                (local [(define obj-type (recur obj-expr))
                        (define arg-type (recur arg-expr))]
@@ -291,7 +306,7 @@
                  (if (or (is-subtype? (objT cast-class-name) obj-type t-classes)
                          (is-subtype? obj-type (objT cast-class-name) t-classes))
                      (objT cast-class-name)
-                     (type-error obj-expr "not a subtype")))]
+                     (type-error obj-expr "subtype")))]
 
         ;; #9 
         [newarrayI (t len-expr init-expr)
@@ -404,11 +419,17 @@
             (list (fieldT 'topleft (objT 'posn)))
             (list)))
 
+  (define square2-t-class 
+    (classT 'square2 'object
+            (list (fieldT 'topleft (objT 'posn3D)))
+            (list)))
+
   (define (typecheck-posn a)
     (typecheck a
-               (list posn-t-class posn3D-t-class square-t-class)))
+               (list posn-t-class posn3D-t-class square-t-class square2-t-class)))
   
   (define posn27 (newI 'posn (list (numI 2) (numI 7))))
+  (define posn25 (newI 'posn (list (numI 2) (numI 5))))
   (define posn531 (newI 'posn3D (list (numI 5) (numI 3) (numI 1))))
 
   (test (typecheck-posn (sendI posn27 'mdist (numI 0)))
@@ -469,7 +490,20 @@
   (test (typecheck-posn (castI 'posn3D posn27))
         (objT 'posn3D))
   (test/exn (typecheck-posn (castI 'posn3D (numI 0)))
-        "not a subtype")
+        "subtype")
+
+  ;; #6
+  (test (typecheck-posn (setI posn531 'x (numI 1)))
+        (numT))
+  (test/exn (typecheck-posn (setI (newI 'square2 (list posn531))
+                              'topleft
+                              posn27))
+        "subtype")             
+  (test/exn (typecheck (setI (numI 1) 'x (numI 1))
+                       empty)
+            "no type")
+  (test/exn (typecheck-posn (setI posn531 'd (numI 1)))
+            "not found")
 
   ;; #9
   (test (typecheck (newarrayI (numT) (numI 1) (numI 2))
@@ -516,9 +550,9 @@
                          (newarrayI (objT 'posn3D) (numI 3) posn531)))
         (numT))
   (test/exn (typecheck-posn (arraysetI
-                         (newarrayI (arrayT (objT 'posn3D)) (numI 10) (newarrayI (objT 'posn3D) (numI 100) posn531))
-                         (numI 5)
-                         (newarrayI (objT 'posn) (numI 3) posn27)))
+                             (newarrayI (arrayT (objT 'posn3D)) (numI 10) (newarrayI (objT 'posn3D) (numI 100) posn531))
+                             (numI 5)
+                             (newarrayI (objT 'posn) (numI 3) posn27)))
         "subtype")
                               
 

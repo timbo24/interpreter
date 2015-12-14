@@ -106,6 +106,12 @@
    [(s-exp-match? '{get ANY SYMBOL} s)
     (getI (parse (second (s-exp->list s)))
           (s-exp->symbol (third (s-exp->list s))))]
+
+   ;; #6
+   [(s-exp-match? '{set ANY SYMBOL ANY} s)
+    (setI (parse (second (s-exp->list s)))
+          (s-exp->symbol (third (s-exp->list s)))
+          (parse (fourth (s-exp->list s))))]
    [(s-exp-match? '{send ANY SYMBOL ANY} s)
     (sendI (parse (second (s-exp->list s)))
            (s-exp->symbol (third (s-exp->list s)))
@@ -169,6 +175,10 @@
   ;; #5
   (test (parse '{cast fish 1})
         (castI 'fish (numI 1)))
+
+  ;; #6
+  (test (parse '{set 1 x 0})
+        (setI (numI 1) 'x (numI 0)))
   
   ;; #9
   (test (parse '{newarray num 1 2})
