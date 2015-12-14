@@ -82,6 +82,11 @@
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
 
+   ;; #5
+   [(s-exp-match? '{cast SYMBOL ANY} s)
+    (castI (s-exp->symbol (second (s-exp->list s)))
+           (parse (third (s-exp->list s))))]
+
    ;; #9
    [(s-exp-match? '{newarray ANY ANY ANY} s)
     (newarrayI (parse-type (second (s-exp->list s)))
@@ -160,6 +165,10 @@
   ;; #3
   (test (parse '{if0 0 1 2})
         (if0I (numI 0) (numI 1) (numI 2)))
+
+  ;; #5
+  (test (parse '{cast fish 1})
+        (castI 'fish (numI 1)))
   
   ;; #9
   (test (parse '{newarray num 1 2})

@@ -32,6 +32,10 @@
         (thn : ExprI)
         (els : ExprI)]
 
+  ;; #5
+  [castI (class-name : symbol)
+         (obj : ExprI)]                          
+
   ;; #9
   [newarrayI (t : Type)
              (len : ExprI)
@@ -91,6 +95,11 @@
                   (recur thn)
                   (recur els))]
 
+      ;; #5
+      [castI (cast-class-name obj-expr)
+             (castC cast-class-name
+                   (recur obj-expr))]
+
       ;; #9
       [newarrayI (t len init)
                  (newarrayC t
@@ -131,6 +140,10 @@
   ;; #3
   (test (expr-i->c (if0I (numI 0) (numI 1) (numI 2)) 'object)
         (if0C (numC 0) (numC 1) (numC 2)))
+
+  ;; #5
+  (test (expr-i->c (castI 'fish (numI 0)) 'object)
+        (castC 'fish (numC 0)))
   
   ;; #9
   (test (expr-i->c (newarrayI (numT) (numI 1) (numI 2)) 'object)

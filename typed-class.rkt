@@ -285,6 +285,14 @@
                                (type-error els-expr "object")))]
                 [else (type-error t-expr "number")])]
 
+        ;; #5
+        [castI (cast-class-name obj-expr)
+               (local [(define obj-type (recur obj-expr))]
+                 (if (or (is-subtype? (objT cast-class-name) obj-type t-classes)
+                         (is-subtype? obj-type (objT cast-class-name) t-classes))
+                     (objT cast-class-name)
+                     (type-error obj-expr "not a subtype")))]
+
         ;; #9 
         [newarrayI (t len-expr init-expr)
                    (type-case Type (recur len-expr)
@@ -421,6 +429,12 @@
                    empty)
         (numT))
 
+  ;; #1
+  #;(test/exn (typecheck-posn (sendI posn27 'mdist (thisI)))
+            "'this not allowed in main expression")
+  #;(test/exn (typecheck-posn (sendI posn27 'mdist (argI)))
+            "'arg not allowed in main expression")
+
   ;; #2
   (test/exn (typecheck (instanceofI (numI 0) 'fish)
                        
@@ -448,6 +462,14 @@
   ;; #4
   (test (typecheck-posn (if0I (numI 0) posn531 (newI 'square (list (newI 'posn (list (numI 0) (numI 1)))))))
         (objT 'object))
+
+  ;; #5
+  (test (typecheck-posn (castI 'posn posn531))
+        (objT 'posn))
+  (test (typecheck-posn (castI 'posn3D posn27))
+        (objT 'posn3D))
+  (test/exn (typecheck-posn (castI 'posn3D (numI 0)))
+        "not a subtype")
 
   ;; #9
   (test (typecheck (newarrayI (numT) (numI 1) (numI 2))

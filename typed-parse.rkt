@@ -37,16 +37,6 @@
              (parse (fourth (rest (rest (s-exp->list s))))))]
    [else (error 'parse-t-method "invalid input")]))
 
-#;(define (parse-type [s : s-expression]) : Type
-  (cond
-   [(s-exp-match? `num s)
-    (numT)]
-   [(s-exp-match? '(array ANY) s)
-    (arrayT (parse-type (second (s-exp->list s))))]
-   [(s-exp-match? `SYMBOL s)
-    (objT (s-exp->symbol s))]
-   [else (error 'parse-type "invalid input")]))
-
 (module+ test
   (test (parse-type `num)
         (numT))

@@ -36,6 +36,10 @@
         (thn : ExprC)
         (els : ExprC)]
 
+  ;; #5
+  [castC (class-name : symbol)
+         (obj : ExprC)]                    
+
   ;; #9
   [newarrayC (t : Type)
              (len : ExprC)
@@ -218,6 +222,16 @@
                   (recur thn)
                   (recur els))]
 
+        ;; #5
+        [castC (cast-class-name obj-expr)
+               (local [(define obj-val (recur obj-expr))]
+                 (type-case Value obj-val
+                   [objV (obj-class-name field-vals)
+                         (if (subclass? obj-class-name cast-class-name classes)
+                             obj-val
+                             (error 'interp "not a subclass"))]
+                   [else (error 'interp "not an object")]))]                           
+
         ;; #9
         [newarrayC (t len-expr arr-expr)
                    (local [(define len (recur len-expr))
@@ -380,6 +394,15 @@
   (test (interp (if0C (numC 1) (numC 0) (numC 2))
                 empty (numV -1) (numV -1))
         (numV 2))
+
+  ;; #5
+  (test (interp-posn (castC 'posn posn531))
+        (objV 'posn3D (list (numV 5) (numV 3) (numV 1))))
+  (test/exn (interp-posn (castC 'posn3D posn27))
+            "not a subclass")
+  (test/exn (interp-posn (castC 'posn3D (numC 1)))
+            "not an object")
+  
   ;; #9
   (test (interp (newarrayC (numT) (numC 3) (numC 3))
                 empty (numV -1) (numV -1))
