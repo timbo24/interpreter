@@ -1,1 +1,0 @@
-("6.3" ("4679a182fc9ca6ce1bc78814d16354582ab2427c" . "c658020d95ff5496a7af86abfc4a2a3e57df71ce") #"/Users/tkkemo/Documents/School:CS/ProgrammingLanguages/hw12/class.rkt" (collects #"plai-typed" #"main.rkt") (collects #"racket" #"base.rkt") (collects #"racket" #"runtime-config.rkt") (collects #"racket" #"runtime-path.rkt"))
