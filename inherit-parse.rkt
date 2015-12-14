@@ -52,7 +52,7 @@
         (objT 'object))
   (test/exn (parse-type `{})
             "invalid input")
-
+  
   ;; #9
   (test (parse-type '(array num))
         (arrayT (numT))))
@@ -64,6 +64,9 @@
    [(s-exp-match? `NUMBER s) (numI (s-exp->number s))]
    [(s-exp-match? `arg s) (argI)]
    [(s-exp-match? `this s) (thisI)]
+
+   ;; #7
+   [(s-exp-match? `null s) (nullI)]
    [(s-exp-match? '{+ ANY ANY} s)
     (plusI (parse (second (s-exp->list s)))
            (parse (third (s-exp->list s))))]
@@ -179,6 +182,10 @@
   ;; #6
   (test (parse '{set 1 x 0})
         (setI (numI 1) 'x (numI 0)))
+
+  ;; #7
+  (test (parse '{set null x 0})
+        (setI (nullI) 'x (numI 0)))
   
   ;; #9
   (test (parse '{newarray num 1 2})
@@ -200,6 +207,11 @@
     (type-case Value v
       [numV (n) (number->s-exp n)]
       [objV (class-name field-vals) `object]
+
+      ;; #7
+      [nullV () `null]
+
+      ;; #9
       [arrayV (t len arr) `array])))
 
 (module+ test
@@ -225,6 +237,7 @@
         
         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
        '18)
+
   (test (interp-prog 
         (list
          '{class test extends object
@@ -233,4 +246,13 @@
             {set {arrayset {get this x} arg 0}}
             {ref {arrayref {get this x} arg}}})
         '{send {new test {newarray num 1 1}} new 1})
-        `array))
+        `array)
+  (test (interp-prog 
+        (list
+         '{class test extends object
+            {x}
+            {new {newarray num 0 arg}}
+            {set {arrayset {get this x} arg 0}}
+            {ref {arrayref {get this x} arg}}})
+        '{send {new test {newarray posn 1 null}} ref 0})
+        `null))

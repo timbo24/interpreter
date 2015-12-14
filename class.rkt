@@ -5,7 +5,10 @@
 (define-type Type
   [numT]
   [objT (class-name : symbol)]
-  [arrayT (t : Type)])
+  [arrayT (t : Type)]
+
+  ;; #7
+  [nullT])
 
 (define-type ExprC
   [numC (n : number)]
@@ -45,6 +48,9 @@
         (field-name : symbol)
         (arg : ExprC)]
 
+  ;; #7
+  [nullC]
+
   ;; #9
   [newarrayC (t : Type)
              (len : ExprC)
@@ -69,9 +75,14 @@
 
 (define-type Value
   [numV (n : number)]
+
   ;; #6
   [objV (class-name : symbol)
         (field-values : (listof (boxof Value)))]
+
+  ;; #7
+  [nullV]
+  
   [arrayV (t : Type)
           (len : number)
           (arr : (listof (boxof Value)))])
@@ -216,6 +227,9 @@
                         [classC (name class-name field-names methods)
                                 (get-field field-name field-names 
                                            field-vals)])]
+                ;; #7
+                [nullV ()
+                       (error 'interp "not an object")]
                 [else (error 'interp "not an object")])]
         
         ;; #6
@@ -227,6 +241,9 @@
                                 (begin
                                   (set-field! field-name field-names field-vals (recur expr))
                                   (numV 0))])]
+                ;; #7
+                [nullV ()
+                       (error 'interp "not an object")]
                 [else (error 'interp "not an object")])]
         [sendC (obj-expr method-name arg-expr)
                (local [(define obj (recur obj-expr))
@@ -235,6 +252,9 @@
                    [objV (class-name field-vals)
                          (call-method class-name method-name classes
                                       obj arg-val)]
+                   ;; #7
+                   [nullV ()
+                          (error 'interp "not an object")]
                    [else (error 'interp "not an object")]))]
         [ssendC (obj-expr class-name method-name arg-expr)
                 (local [(define obj (recur obj-expr))
@@ -251,6 +271,11 @@
                                  (begin
                                    (find-class class-name classes)
                                    (numV 1)))]
+                       ;; #7
+                       [nullV ()
+                              ;; not sure on this, seems like null is never instanceof a class
+                              ;; but shouldn't throw error
+                              (numV 1)]
                        [else (error 'interp "not an object")])]
         
         ;; #3 
@@ -267,7 +292,14 @@
                          (if (subclass? obj-class-name cast-class-name classes)
                              obj-val
                              (error 'interp "not a subclass"))]
+                   ;; #7
+                   [nullV ()
+                          obj-val]
                    [else (error 'interp "not an object")]))]
+
+        ;; #7
+        [nullC ()
+               (nullV)]
 
         ;; #9
         [newarrayC (t len-expr arr-expr)
@@ -295,6 +327,12 @@
                                                     (numV 0))
                                              (error 'interp "index out of bounds"))
                                          (error 'interp "not a subclass"))]
+                               ;; #7
+                               [nullV ()
+                                      (if (< (numV-n ind) (arrayV-len arr))
+                                             (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
+                                                    (numV 0))
+                                             (error 'interp "index out of bounds"))]
                                [else (error 'interp "not an object")])]
                        [else
                         (if (< (numV-n ind) (arrayV-len arr))
@@ -447,6 +485,27 @@
         (numV 0))
   (test/exn (interp-posn (setC (numC 1) 'x (numC 0)))
         "not an object")
+
+  ;; #7
+  (test/exn (interp-posn (getC (nullC) 'x))
+            "not an object")
+  (test/exn (interp-posn (setC (nullC) 'x (numC 1)))
+            "not an object")
+  (test/exn (interp-posn (sendC (nullC) 'x (numC 1)))
+            "not an object")
+  (test (interp-posn (castC 'posn (nullC)))
+        (nullV))
+  (test (interp-posn (instanceofC (nullC) 'posn))
+            (numV 1))
+  (test (interp-posn (arraysetC (newarrayC (objT 'posn) (numC 1) posn27)
+                                (numC 0)
+                                (nullC)))
+            (numV 0))
+  (test/exn (interp-posn (arraysetC (newarrayC (objT 'posn) (numC 1) posn27)
+                                (numC 3)
+                                (nullC)))
+            "index out of bounds")
+  
   
   ;; #9
   (test (interp (newarrayC (numT) (numC 3) (numC 3))
@@ -462,9 +521,13 @@
                 empty (numV -1) (numV -1))
         "index out of bounds")
   (test (interp (arraysetC (newarrayC (numT) (numC 3) (numC 2))
-                           (numC 1)
-                           (numC 4))
+                           (numC 0)
+                           (numC 1))
                 empty (numV -1) (numV -1))
+        (numV 0))
+  (test (interp-posn (arraysetC (newarrayC (objT 'posn) (numC 3) posn27)
+                           (numC 1)
+                           posn531))
         (numV 0))
   
 

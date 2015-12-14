@@ -81,7 +81,8 @@
     (type-case Value v
       [numV (n) (number->s-exp n)]
       [objV (class-name field-vals) `object]
-      [arrayV (t len arr) `array])))
+      [arrayV (t len arr) `array]
+      [nullV () `null])))
 
 (module+ test
   (test (interp-t-prog
@@ -101,7 +102,6 @@
                  {addDist : posn -> num
                           {+ {send arg mdist 0}
                              {send this mdist 0}}}}
-         
          '{class posn3D extends posn
                  {[z : num]}
                  {mdist : num -> num
@@ -121,4 +121,24 @@
             {ref : num -> num
                  {arrayref {get this x} arg}}})
         '{send {new test {newarray num 1 1}} new 1})
-        `array))
+        `array)
+  (test (interp-t-prog 
+        (list
+         '{class posn extends object
+                 {[x : num]
+                  [y : num]}
+                 {mdist : num -> num
+                        {+ {get this x} {get this y}}}
+                 {addDist : posn -> num
+                          {+ {send arg mdist 0}
+                             {send this mdist 0}}}}
+         '{class test extends object
+            {[x : (array posn)]}
+            {new : posn -> (array posn)
+             {newarray num 0 arg}}
+            {set : num -> num
+             {arrayset {get this x} arg 0}}
+            {ref : num -> posn
+             {arrayref {get this x} arg}}})
+        '{send {new test {newarray posn 1 null}} ref 0})
+        `null))

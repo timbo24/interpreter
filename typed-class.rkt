@@ -114,6 +114,13 @@
           (type-case Type t2 
             [arrayT (array2-t) (arrayT (least-upper-bound-type array1-t array2-t t-classes))]
             [else (error 'type "no least upper bound")])]
+
+    ;; #7
+    [nullT ()
+           (type-case Type t2
+             [nullT () (nullT)]
+             [objT (name2) (objT name2)]
+             [else (error 'type "no least upper bound")])]
     [else
      (if (equal? t1 t2)
          t1
@@ -133,6 +140,13 @@
               [arrayT (array2-t)
                       (has-least-upper-bound-type? array1-t array2-t t-classes)]
               [else false])]
+    
+    ;; #7
+    [nullT ()
+           (type-case Type t2
+             [nullT () true]
+             [objT (name2) true]
+             [else false])]
     [else (equal? t1 t2)]))
      
 
@@ -143,12 +157,20 @@
             [objT (name2)
                   (is-subclass? name1 name2 t-classes)]
             [else false])]
+
     ;; #9 #10
     [arrayT (array1-t)
             (type-case Type t2
               [arrayT (array2-t)
                       (is-subtype? array1-t array2-t t-classes)]
               [else false])]
+
+    ;; #7
+    [nullT ()
+           (type-case Type t2
+             [nullT () true]
+             [objT (name2) true]
+             [else false])]
     [else (equal? t1 t2)]))
 
 (module+ test
@@ -193,6 +215,26 @@
             false)
   (test (has-least-upper-bound-type? (arrayT (objT 'c)) (numT) (list a-t-class b-t-class c-t-class))
             false)
+
+  ;; #7
+  (test (is-subtype? (nullT) (objT 'b) (list a-t-class b-t-class))
+        true)
+  (test (is-subtype? (nullT) (nullT) (list a-t-class b-t-class))
+        true)
+  (test (is-subtype? (nullT) (numT) (list a-t-class b-t-class))
+        false)
+  (test (has-least-upper-bound-type? (nullT) (objT 'b) (list a-t-class b-t-class))
+        true)
+  (test (has-least-upper-bound-type? (nullT) (nullT) (list a-t-class b-t-class))
+        true)
+  (test (has-least-upper-bound-type? (nullT) (numT) (list a-t-class b-t-class))
+        false)
+  (test (least-upper-bound-type (nullT) (nullT) (list a-t-class b-t-class c-t-class))
+            (nullT))
+  (test (least-upper-bound-type (nullT) (objT 'b) (list a-t-class b-t-class c-t-class))
+            (objT 'b))
+  (test/exn (least-upper-bound-type (nullT) (numT) (list a-t-class b-t-class c-t-class))
+            "no least upper bound")
 
   ;; #9 #10
   (test (has-least-upper-bound-type? (objT 'c) (objT 'b) (list a-t-class b-t-class c-t-class))
@@ -247,6 +289,9 @@
                                                     t-classes))]
                         (type-case FieldT field
                           [fieldT (name type) type]))]
+                ;; #7
+                [nullT ()
+                       (type-error obj-expr "object")]
                 [else (type-error obj-expr "object")])]
         [setI (obj-expr field-name arg-expr)
               (type-case Type (recur obj-expr)
@@ -262,6 +307,9 @@
                                   (if (is-subtype? (recur arg-expr) type t-classes)
                                       (numT)
                                       (type-error arg-expr "not a subtype"))]))]
+                ;; #7
+                [nullT ()
+                       (type-error obj-expr "object")]
                 [else (type-error obj-expr "object")])]
         [sendI (obj-expr method-name arg-expr)
                (local [(define obj-type (recur obj-expr))
@@ -271,6 +319,9 @@
                          (typecheck-send class-name method-name
                                          arg-expr arg-type
                                          t-classes)]
+                   ;; #7
+                   [nullT ()
+                          (type-error obj-expr "object")]
                    [else
                     (type-error obj-expr "object")]))]
         [superI (method-name arg-expr)
@@ -307,6 +358,10 @@
                          (is-subtype? obj-type (objT cast-class-name) t-classes))
                      (objT cast-class-name)
                      (type-error obj-expr "subtype")))]
+
+        ;; #7
+        [nullI ()
+               (nullT)]
 
         ;; #9 
         [newarrayI (t len-expr init-expr)
@@ -421,8 +476,9 @@
 
   (define square2-t-class 
     (classT 'square2 'object
-            (list (fieldT 'topleft (objT 'posn3D)))
-            (list)))
+            (list (fieldT 'z (objT 'posn3D)))
+            (list (methodT 'return-obj (objT 'posn3D) (objT 'posn3D)
+                           (getI (thisI) 'z)))))
 
   (define (typecheck-posn a)
     (typecheck a
@@ -496,14 +552,30 @@
   (test (typecheck-posn (setI posn531 'x (numI 1)))
         (numT))
   (test/exn (typecheck-posn (setI (newI 'square2 (list posn531))
-                              'topleft
+                              'z
                               posn27))
-        "subtype")             
+        "subtype")              
   (test/exn (typecheck (setI (numI 1) 'x (numI 1))
                        empty)
             "no type")
   (test/exn (typecheck-posn (setI posn531 'd (numI 1)))
             "not found")
+
+  ;; #7
+  (test/exn (typecheck-posn (getI (nullI) 'd))
+            "object")
+  (test/exn (typecheck-posn (setI (nullI) 'd (numI 1)))
+            "object")
+  (test/exn (typecheck-posn (sendI (nullI) 'd (numI 1)))
+            "object")
+  (test (typecheck-posn (setI (newI 'square2 (list (nullI)))
+                              'z
+                              (nullI)))
+        (numT))
+  (test (typecheck-posn (sendI (newI 'square2 (list (nullI)))
+                              'return-obj
+                              (nullI)))
+        (objT 'posn3D))
 
   ;; #9
   (test (typecheck (newarrayI (numT) (numI 1) (numI 2))

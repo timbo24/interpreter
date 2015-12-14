@@ -17,11 +17,6 @@
         (args : (listof ExprI))]
   [getI (obj-expr : ExprI)
         (field-name : symbol)]
-
-  ;; #6
-  [setI (obj-expr : ExprI)
-        (field-name : symbol)
-        (arg-expr : ExprI)]
   [sendI (obj-expr : ExprI)
          (method-name : symbol)
          (arg-expr : ExprI)]
@@ -39,7 +34,15 @@
 
   ;; #5
   [castI (class-name : symbol)
-         (obj-expr : ExprI)]                          
+         (obj-expr : ExprI)]
+  
+  ;; #6
+  [setI (obj-expr : ExprI)
+        (field-name : symbol)
+        (arg-expr : ExprI)]
+
+  ;; #7
+  [nullI]
 
   ;; #9
   [newarrayI (type : Type)
@@ -79,12 +82,6 @@
             (newC class-name (map recur field-exprs))]
       [getI (expr field-name)
             (getC (recur expr) field-name)]
-
-      ;; #6
-      [setI (obj-expr field-name arg-expr)
-            (setC (recur obj-expr)
-                  field-name
-                  (recur arg-expr))]
       [sendI (expr method-name arg-expr)
              (sendC (recur expr)
                     method-name
@@ -110,6 +107,16 @@
       [castI (cast-class-name obj-expr)
              (castC cast-class-name
                    (recur obj-expr))]
+      
+      ;; #6
+      [setI (obj-expr field-name arg-expr)
+            (setC (recur obj-expr)
+                  field-name
+                  (recur arg-expr))]
+
+      ;; #7
+      [nullI ()
+             (nullC)]
 
       ;; #9
       [newarrayI (t len init)
@@ -159,6 +166,10 @@
   ;; #6
   (test (expr-i->c (setI (numI 1) 'x (numI 0)) 'object)
         (setC (numC 1) 'x (numC 0)))
+
+  ;; #7
+  (test (expr-i->c (nullI) 'object)
+        (nullC))
   
   ;; #9
   (test (expr-i->c (newarrayI (numT) (numI 1) (numI 2)) 'object)
