@@ -113,7 +113,7 @@
         (numV 0)))
 
 ;; ----------------------------------------
-;; #2 #10 (moved from typed-class)
+;; #2 #10 
 (define (subclass? obj-class-name class-name classes)
   (cond
     [(equal? obj-class-name class-name) #t]
