@@ -169,7 +169,7 @@
     [nullT ()
            (type-case Type t2
              [nullT () true]
-             [objT (name2) true]
+             [objT (name1) true]
              [else false])]
     [else (equal? t1 t2)]))
 

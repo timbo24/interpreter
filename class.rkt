@@ -5,6 +5,8 @@
 (define-type Type
   [numT]
   [objT (class-name : symbol)]
+
+  ;; #9
   [arrayT (t : Type)]
 
   ;; #7
@@ -13,6 +15,9 @@
 ;; ----------------------------------------
 (define-type ExprC
   [numC (n : number)]
+
+  ;; #11
+  [idC (s : symbol)]
   [plusC (lhs : ExprC)
          (rhs : ExprC)]
   [multC (lhs : ExprC)
@@ -257,6 +262,9 @@
               (interp expr classes this-val arg-val))]
       (type-case ExprC a
         [numC (n) (numV n)]
+
+        ;; #11 TODO
+        [idC (s) (numV 0)]
         [plusC (l r) (num+ (recur l) (recur r))]
         [multC (l r) (num* (recur l) (recur r))]
         [thisC () this-val]
@@ -382,10 +390,7 @@
                                              (array-set! ind arr elem)
                                              (error 'interp "not a subclass"))]
                                  [else (error 'interp "not a subclass")])]
-                       [else
-                        (array-set! ind arr elem)]))]))))
-
-
+                       [else (array-set! ind arr elem)]))]))))
 
 (define (call-method class-name method-name classes
                      obj arg-val)
