@@ -247,6 +247,96 @@
         false))
 
 ;; ----------------------------------------
+;; #8
+(define initial-field-exprs : (Type -> ExprI)
+  (lambda (t)
+    (type-case Type t
+      [numT () (numI 0)]
+      [nullT () (nullI)]
+      [objT (name) (nullI)]
+      [arrayT (type) (newarrayI type (numI 1) (initial-field-exprs type))])))
+
+    
+(define initialize-fields : (ExprI (listof ClassT) -> ExprI)
+  (lambda (expr t-classes)
+    (local [(define (recur expr)
+              (initialize-fields expr t-classes))]
+      (type-case ExprI expr
+        [numI (n) (numI n)]
+        [plusI (l r) (plusI (recur l) (recur r))]
+        [multI (l r) (multI (recur l) (recur r))]
+        [argI () (argI)]
+        [thisI () (thisI)]
+
+        ;; #8
+        [newI (class-name empty-list)
+              (local [(define field-types
+                        (get-all-field-types class-name t-classes))]
+                (newI class-name (map initial-field-exprs field-types)))]
+        [getI (obj-expr field-name)
+              (getI (recur obj-expr)
+                    field-name)]
+        [setI (obj-expr field-name arg-expr)
+              (setI (recur obj-expr)
+                    field-name
+                    (recur arg-expr))]
+        [sendI (obj-expr method-name arg-expr)
+               (sendI (recur obj-expr)
+                      method-name
+                      (recur arg-expr))]
+        [superI (method-name arg-expr)
+                (superI method-name
+                        (recur arg-expr))]
+        ;; #2
+        [instanceofI (obj-expr class-name)
+                     (instanceofI (recur obj-expr)
+                                  class-name)]
+
+        ;; #3
+        [if0I (t-expr thn-expr els-expr)
+              (if0I (recur t-expr)
+                    (recur thn-expr)
+                    (recur els-expr))]
+
+        ;; #5
+        [castI (cast-class-name obj-expr)
+               (castI cast-class-name
+                      (recur obj-expr))]
+
+        ;; #7
+        [nullI ()
+               (nullI)]
+
+        ;; #9 
+        [newarrayI (t len-expr init-expr)
+                   (newarrayI t
+                              (recur len-expr)
+                              (recur init-expr))]
+        [arrayrefI (arr-expr ind-expr)
+                   (arrayrefI (recur arr-expr)
+                              (recur ind-expr))]
+        [arraysetI (arr-expr ind-expr elem-expr)
+                   (arraysetI (recur arr-expr)
+                              (recur ind-expr)
+                              (recur elem-expr))]))))
+
+(module+ test
+  (define posn-t-class
+    (classT 'posn 'object
+            (list (fieldT 'x (numT)) (fieldT 'y (numT)))
+            (list (methodT 'mdist (numT) (numT) 
+                           (plusI (getI (thisI) 'x) (getI (thisI) 'y)))
+                  (methodT 'addDist (objT 'posn) (numT)
+                           (plusI (sendI (thisI) 'mdist (numI 0))
+                                  (sendI (argI) 'mdist (numI 0)))))))
+  (define posn27 (newI 'posn (list (numI 2) (numI 7))))
+  
+  (test (initialize-fields (newarrayI (numT) (newI 'posn empty) (numI 1))
+                           (list posn-t-class))
+        (newarrayI (numT) (newI 'posn (list (numI 0) (numI 0))) (numI 1))))
+                           
+        
+;; ----------------------------------------
 
 (define typecheck-expr : (ExprI (listof ClassT) Type Type -> Type)
   (lambda (expr t-classes arg-type this-type)
@@ -453,14 +543,6 @@
 ;; ----------------------------------------
 
 (module+ test
-  (define posn-t-class
-    (classT 'posn 'object
-            (list (fieldT 'x (numT)) (fieldT 'y (numT)))
-            (list (methodT 'mdist (numT) (numT) 
-                           (plusI (getI (thisI) 'x) (getI (thisI) 'y)))
-                  (methodT 'addDist (objT 'posn) (numT)
-                           (plusI (sendI (thisI) 'mdist (numI 0))
-                                  (sendI (argI) 'mdist (numI 0)))))))
 
   (define posn3D-t-class 
     (classT 'posn3D 'posn
@@ -483,8 +565,6 @@
   (define (typecheck-posn a)
     (typecheck a
                (list posn-t-class posn3D-t-class square-t-class square2-t-class)))
-  
-  (define posn27 (newI 'posn (list (numI 2) (numI 7))))
   (define posn25 (newI 'posn (list (numI 2) (numI 5))))
   (define posn531 (newI 'posn3D (list (numI 5) (numI 3) (numI 1))))
 

@@ -102,10 +102,11 @@
     (arraysetI (parse (second (s-exp->list s)))
                (parse (third (s-exp->list s)))
                (parse (fourth (s-exp->list s))))]
-   
-   [(s-exp-match? '{new SYMBOL ANY ...} s)
+
+   ;; #8
+   [(s-exp-match? '{new SYMBOL} s)
     (newI (s-exp->symbol (second (s-exp->list s)))
-          (map parse (rest (rest (s-exp->list s)))))]
+          empty)]
    [(s-exp-match? '{get ANY SYMBOL} s)
     (getI (parse (second (s-exp->list s)))
           (s-exp->symbol (third (s-exp->list s))))]
