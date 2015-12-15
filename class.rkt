@@ -251,35 +251,6 @@
           
 
 ;; ----------------------------------------
-#;(define handle-nested-arrays : (Type Value (symbol Value -> Value) -> Value)
-  (λ (t val fn)
-    (type-case Type t
-      [objT (arr-class-name)
-            (type-case Value val
-              [objV (elem-class-name elem-field-vals)         
-                    (if (subclass? elem-class-name arr-class-name classes)
-                        (if (< (numV-n ind) (arrayV-len arr))
-                            (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                                   (numV 0))
-                            (error 'interp "index out of bounds"))
-                        (error 'interp "not a subclass"))]
-              ;; #7
-              [nullV ()
-                     (if (< (numV-n ind) (arrayV-len arr))
-                         (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                                (numV 0))
-                         (error 'interp "index out of bounds"))]
-              [else (error 'interp "not an object")])]
-      [arrayT (arr-t len arr)
-              (type-case Value val
-                
-                
-      [else
-       (if (< (numV-n ind) (arrayV-len arr))
-           (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                  (numV 0))
-           (error 'interp "index out of bounds"))])])))
-    
 (define interp : (ExprC (listof ClassC) Value Value -> Value)
   (lambda (a classes this-val arg-val)
     (local [(define (recur expr)
