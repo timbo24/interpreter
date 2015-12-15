@@ -166,6 +166,29 @@
        [classC (name super-name field-names methods)
                (subclass? super-name class-name classes)])]))
 
+(define (subtype? t1 t2 classes)
+  (type-case Type t1
+    [objT (name1)
+          (type-case Type t2 
+            [objT (name2)
+                  (subclass? name1 name2 classes)]
+            [else false])]
+
+    ;; #9 #10
+    [arrayT (array1-t)
+            (type-case Type t2
+              [arrayT (array2-t)
+                      (subtype? array1-t array2-t classes)]
+              [else false])]
+
+    ;; #7
+    [nullT ()
+           (type-case Type t2
+             [nullT () true]
+             [objT (name2) true]
+             [else false])]
+    [else (equal? t1 t2)]))
+
 (module+ test
   (test (subclass? 'object 'object empty)
         #t)
@@ -178,6 +201,24 @@
         #t)
   (test (subclass? 'b 'object (list (classC 'a 'object empty empty)
                                     (classC 'b 'a empty empty)))
+        #t)
+  (test (subtype? (objT 'fish) (numT) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
+        #f)
+  (test (subtype? (arrayT (nullT)) (numT) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
+        #f)
+  (test (subtype? (arrayT (nullT)) (arrayT (nullT)) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
+        #t)
+  (test (subtype? (nullT) (objT 'fish) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
+        #t)
+  (test (subtype? (nullT) (numT) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
+        #f)
+  (test (subtype? (numT) (numT) (list (classC 'a 'object empty empty)
+                                            (classC 'b 'a empty empty)))
         #t))
 
 ;; list set -------------------------------
@@ -187,6 +228,12 @@
       [(empty? l) (void)]
       [(= ind 0) (set-box! (first l) elem)]
       [else (list-set! (rest l) (- 1 ind) elem)])))
+
+(define (array-set! ind arr elem)
+  (if (< (numV-n ind) (arrayV-len arr))
+      (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
+             (numV 0))
+      (error 'interp "index out of bounds")))
 
 (module+ test
   (test (list (box (numV 2)) (box (numV 2)))
@@ -204,7 +251,35 @@
           
 
 ;; ----------------------------------------
-
+#;(define handle-nested-arrays : (Type Value (symbol Value -> Value) -> Value)
+  (λ (t val fn)
+    (type-case Type t
+      [objT (arr-class-name)
+            (type-case Value val
+              [objV (elem-class-name elem-field-vals)         
+                    (if (subclass? elem-class-name arr-class-name classes)
+                        (if (< (numV-n ind) (arrayV-len arr))
+                            (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
+                                   (numV 0))
+                            (error 'interp "index out of bounds"))
+                        (error 'interp "not a subclass"))]
+              ;; #7
+              [nullV ()
+                     (if (< (numV-n ind) (arrayV-len arr))
+                         (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
+                                (numV 0))
+                         (error 'interp "index out of bounds"))]
+              [else (error 'interp "not an object")])]
+      [arrayT (arr-t len arr)
+              (type-case Value val
+                
+                
+      [else
+       (if (< (numV-n ind) (arrayV-len arr))
+           (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
+                  (numV 0))
+           (error 'interp "index out of bounds"))])])))
+    
 (define interp : (ExprC (listof ClassC) Value Value -> Value)
   (lambda (a classes this-val arg-val)
     (local [(define (recur expr)
@@ -323,23 +398,23 @@
                              (type-case Value elem
                                [objV (elem-class-name elem-field-vals)         
                                      (if (subclass? elem-class-name arr-class-name classes)
-                                         (if (< (numV-n ind) (arrayV-len arr))
-                                             (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                                                    (numV 0))
-                                             (error 'interp "index out of bounds"))
+                                         (array-set! ind arr elem)
                                          (error 'interp "not a subclass"))]
                                ;; #7
                                [nullV ()
-                                      (if (< (numV-n ind) (arrayV-len arr))
-                                             (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                                                    (numV 0))
-                                             (error 'interp "index out of bounds"))]
+                                      (array-set! ind arr elem)]
                                [else (error 'interp "not an object")])]
+                       [arrayT (t-arr)
+                               (type-case Value elem
+                                 [arrayV (t-elem len elem-arr)
+                                         (if (subtype? t-elem t-arr classes)
+                                             (array-set! ind arr elem)
+                                             (error 'interp "not a subclass"))]
+                                 [else (error 'interp "not a subclass")])]
                        [else
-                        (if (< (numV-n ind) (arrayV-len arr))
-                                             (begin (list-set! (arrayV-arr arr) (numV-n ind) elem)
-                                                    (numV 0))
-                                             (error 'interp "index out of bounds"))]))]))))
+                        (array-set! ind arr elem)]))]))))
+
+
 
 (define (call-method class-name method-name classes
                      obj arg-val)
@@ -553,10 +628,35 @@
                            (numC 2)
                            (numC 2)))
             "not an object")
-        
-  #;(test (interp (arrayrefC tstarr (numC 0))
-                empty (numV -1) (numV -1))
-        (numV 0))
-  #;(test (interp (arrayrefC tstarr (numC 1))
-                empty (numV -1) (numV -1))
-        (numV 0)))
+  (test/exn (interp-posn (arraysetC
+                          (newarrayC (arrayT (objT 'posn3D))
+                                     (numC 10)
+                                     (newarrayC (objT 'posn3D)
+                                                (numC 100)
+                                                posn531))
+                          (numC 5)
+                          (newarrayC (objT 'posn) (numC 10) posn27)))
+            "not a subclass")
+  (test (interp-posn (arraysetC
+                          (newarrayC (arrayT (objT 'posn3D))
+                                     (numC 10)
+                                     (newarrayC (objT 'posn3D)
+                                                (numC 100)
+                                                posn531))
+                          (numC 5)
+                          (newarrayC (objT 'posn3D) (numC 10) posn531)))
+            (numV 0))
+  (test/exn (interp-posn (arraysetC
+                          (newarrayC (arrayT (objT 'posn3D))
+                                     (numC 10)
+                                     (newarrayC (objT 'posn3D)
+                                                (numC 100)
+                                                posn531))
+                          (numC 5)
+                          (numC 0)))
+            "not a subclass")
+  (test/exn (interp-posn (arraysetC
+                          (newarrayC (objT 'posn3D) (numC 3) posn531)
+                          (numC 0)
+                          posn27))
+            "not a subclass"))

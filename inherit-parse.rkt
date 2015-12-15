@@ -136,8 +136,8 @@
         (plusI (numI 1) (numI 2)))
   (test (parse '{* 1 2})
         (multI (numI 1) (numI 2)))
-  (test (parse '{new posn 1 2})
-        (newI 'posn (list (numI 1) (numI 2))))
+  (test (parse '{new posn})
+        (newI 'posn empty))
   (test (parse '{get 1 x})
         (getI (numI 1) 'x))
   (test (parse '{send 1 m 2})
@@ -200,60 +200,3 @@
   (test (parse '{arrayset {newarray (array (array num)) 1 2} 0 2})
         (arraysetI (newarrayI (arrayT (arrayT (numT))) (numI 1) (numI 2)) (numI 0) (numI 2))))
 
-;; ----------------------------------------
-
-(define (interp-prog [classes : (listof s-expression)] [a : s-expression]) : s-expression
-  (let ([v (interp-i (parse a)
-                     (map parse-class classes))])
-    (type-case Value v
-      [numV (n) (number->s-exp n)]
-      [objV (class-name field-vals) `object]
-
-      ;; #7
-      [nullV () `null]
-
-      ;; #9
-      [arrayV (t len arr) `array])))
-
-(module+ test
-  (test (interp-prog
-         (list
-          '{class empty extends object
-                  {}})
-         '{new empty})
-        `object)
-
- (test (interp-prog 
-        (list
-         '{class posn extends object
-                 {x y}
-                 {mdist {+ {get this x} {get this y}}}
-                 {addDist {+ {send arg mdist 0}
-                             {send this mdist 0}}}}
-         
-         '{class posn3D extends posn
-                 {z}
-                 {mdist {+ {get this z} 
-                           {super mdist arg}}}})
-        
-        '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
-       '18)
-
-  (test (interp-prog 
-        (list
-         '{class test extends object
-            {x}
-            {new {newarray num 0 arg}}
-            {set {arrayset {get this x} arg 0}}
-            {ref {arrayref {get this x} arg}}})
-        '{send {new test {newarray num 1 1}} new 1})
-        `array)
-  (test (interp-prog 
-        (list
-         '{class test extends object
-            {x}
-            {new {newarray num 0 arg}}
-            {set {arrayset {get this x} arg 0}}
-            {ref {arrayref {get this x} arg}}})
-        '{send {new test {newarray posn 1 null}} ref 0})
-        `null))

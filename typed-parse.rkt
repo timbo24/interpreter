@@ -144,3 +144,114 @@
              {arrayref {get this x} arg}}})
         '{send {new test} ref 0})
         `null))
+
+;; ----------------------------------------
+;; #8 (moved from inherit-parse)
+(define (interp-prog [classes : (listof s-expression)]
+                     [t-classes : (listof s-expression)]
+                     [a : s-expression]) : s-expression
+  (let ([v (interp-i (initialize-fields (parse a)
+                                        (map parse-t-class t-classes))
+                     (map parse-class classes))])
+    (type-case Value v
+      [numV (n) (number->s-exp n)]
+      [objV (class-name field-vals) `object]
+
+      ;; #7
+      [nullV () `null]
+
+      ;; #9
+      [arrayV (t len arr) `array])))
+
+(module+ test
+  (test (interp-prog
+         (list
+          '{class empty extends object
+                  {}})
+
+         (list
+          '{class empty extends object
+                  {}})
+         
+         '{new empty})
+        `object)
+
+ (test (interp-prog 
+        (list
+         '{class posn extends object
+                 {x y}
+                 {mdist {+ {get this x} {get this y}}}
+                 {addDist {+ {send arg mdist 0}
+                             {send this mdist 0}}}}
+         
+         '{class posn3D extends posn
+                 {z}
+                 {mdist {+ {get this z} 
+                           {super mdist arg}}}})
+
+        (list
+         '{class posn extends object
+                 {[x : num]
+                  [y : num]}
+                 {mdist : num -> num
+                        {+ {get this x} {get this y}}}
+                 {addDist : posn -> num
+                          {+ {send arg mdist 0}
+                             {send this mdist 0}}}}
+         '{class posn3D extends posn
+                 {[z : num]}
+                 {mdist : num -> num
+                        {+ {get this z} 
+                           {super mdist arg}}}})
+        
+        '{send {new posn3D} addDist {new posn}})
+       '0)
+
+  (test (interp-prog 
+        (list
+         '{class test extends object
+            {x}
+            {new {newarray num 0 arg}}
+            {set {arrayset {get this x} arg 0}}
+            {ref {arrayref {get this x} arg}}})
+
+        (list
+         '{class test extends object
+            {[x : (array num)]}
+            {new : num -> (array num)
+                 {newarray num 0 arg}}
+            {set : num -> num
+             {arrayset {get this x} arg 0}}
+            {ref : num -> num
+                 {arrayref {get this x} arg}}})
+        
+        '{send {new test} new 1})
+        `array)
+  (test (interp-prog 
+        (list
+         '{class test extends object
+            {x}
+            {new {newarray num 0 arg}}
+            {set {arrayset {get this x} arg 0}}
+            {ref {arrayref {get this x} arg}}})
+
+        (list
+         '{class posn extends object
+                 {[x : num]
+                  [y : num]}
+                 {mdist : num -> num
+                        {+ {get this x} {get this y}}}
+                 {addDist : posn -> num
+                          {+ {send arg mdist 0}
+                             {send this mdist 0}}}}
+         '{class test extends object
+            {[x : (array posn)]}
+            {new : posn -> (array posn)
+             {newarray num 0 arg}}
+            {set : num -> num
+             {arrayset {get this x} arg 0}}
+            {ref : num -> posn
+             {arrayref {get this x} arg}}})
+        
+        '{send {new test} ref 0})
+        `null))
