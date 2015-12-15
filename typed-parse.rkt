@@ -76,15 +76,16 @@
 ;; ----------------------------------------
 
 (define (interp-t-prog [classes : (listof s-expression)] [a : s-expression]) : s-expression
-  (let ([v (interp-t (initialize-fields (parse a)
-                                        (map parse-t-class classes))
-                     (map parse-t-class classes))])
-    (type-case Value v
-      [numV (n) (number->s-exp n)]
-      [objV (class-name field-vals) `object]
-      [arrayV (t len arr) `array]
-      [nullV () `null])))
-
+  (local [(define parsed-classes (map parse-t-class classes))]
+    (let ([v (interp-t (initialize-fields (check-for-this-arg (parse a) parsed-classes)
+                                          parsed-classes)
+                       parsed-classes)])
+      (type-case Value v
+        [numV (n) (number->s-exp n)]
+        [objV (class-name field-vals) `object]
+        [arrayV (t len arr) `array]
+        [nullV () `null]))))
+  
 (module+ test
   (test (interp-t-prog
          (list

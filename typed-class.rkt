@@ -399,7 +399,124 @@
                            
         
 ;; ----------------------------------------
+(define check-for-this-arg : (ExprI (listof ClassT) -> ExprI)
+  (lambda (expr t-classes)
+    (local [(define (recur expr)
+              (check-for-this-arg expr t-classes))]
+      (type-case ExprI expr
+        [numI (n) (numI n)]
+        [plusI (l r) (plusI (recur l) (recur r))]
+        [multI (l r) (multI (recur l) (recur r))]
+        [argI () (error 'type "arg in main expression")]
+        [thisI () (error 'type "this in main expression")]
+        [newI (class-name empty-list)
+              (newI class-name
+                    empty-list)]
+        [getI (obj-expr field-name)
+              (getI (recur obj-expr)
+                    field-name)]
+        [setI (obj-expr field-name arg-expr)
+              (setI (recur obj-expr)
+                    field-name
+                    (recur arg-expr))]
+        [sendI (obj-expr method-name arg-expr)
+               (sendI (recur obj-expr)
+                      method-name
+                      (recur arg-expr))]
+        [superI (method-name arg-expr)
+                (superI method-name
+                        (recur arg-expr))]
+        ;; #2
+        [instanceofI (obj-expr class-name)
+                     (instanceofI (recur obj-expr)
+                                  class-name)]
 
+        ;; #3
+        [if0I (t-expr thn-expr els-expr)
+              (if0I (recur t-expr)
+                    (recur thn-expr)
+                    (recur els-expr))]
+
+        ;; #5
+        [castI (cast-class-name obj-expr)
+               (castI cast-class-name
+                      (recur obj-expr))]
+
+        ;; #7
+        [nullI ()
+               (nullI)]
+
+        ;; #9 
+        [newarrayI (t len-expr init-expr)
+                   (newarrayI t
+                              (recur len-expr)
+                              (recur init-expr))]
+        [arrayrefI (arr-expr ind-expr)
+                   (arrayrefI (recur arr-expr)
+                              (recur ind-expr))]
+        [arraysetI (arr-expr ind-expr elem-expr)
+                   (arraysetI (recur arr-expr)
+                              (recur ind-expr)
+                              (recur elem-expr))]))))
+
+(module+ test
+
+  (test (check-for-this-arg (plusI (numI 0) (numI 1))
+                           empty)
+        (plusI (numI 0) (numI 1)))
+  (test (check-for-this-arg (multI (numI 0) (numI 1))
+                           empty)
+        (multI (numI 0) (numI 1)))
+  (test (check-for-this-arg (multI (numI 0) (numI 1))
+                           empty)
+        (multI (numI 0) (numI 1)))
+  (test (check-for-this-arg (getI (numI 1) 'fish)
+                           empty)
+        (getI (numI 1) 'fish))
+  (test (check-for-this-arg (setI (numI 1) 'fish (numI 0))
+                           empty)
+        (setI (numI 1) 'fish (numI 0)))
+  (test (check-for-this-arg (sendI (numI 1) 'fish (numI 0))
+                           empty)
+        (sendI (numI 1) 'fish (numI 0)))
+  (test (check-for-this-arg (superI 'fish (numI 0))
+                           empty)
+        (superI 'fish (numI 0)))
+  (test (check-for-this-arg (instanceofI (numI 0) 'fish)
+                           empty)
+        (instanceofI (numI 0) 'fish))
+  (test (check-for-this-arg (if0I (numI 0) (numI 0) (numI 0))
+                           empty)
+        (if0I (numI 0) (numI 0) (numI 0)))
+  (test (check-for-this-arg (castI 'fish (numI 0))
+                           empty)
+        (castI 'fish (numI 0)))
+  (test (check-for-this-arg (castI 'fish (numI 0))
+                           empty)
+        (castI 'fish (numI 0)))
+  (test (check-for-this-arg (nullI)
+                           (list posn-t-class))
+        (nullI))
+  (test/exn (check-for-this-arg (thisI)
+                           (list posn-t-class))
+        "this in main expression")
+  (test/exn (check-for-this-arg (argI)
+                           (list posn-t-class))
+        "arg in main expression")
+  (test (check-for-this-arg (newarrayI (numT) (numI 0) (numI 0))
+                           (list posn-t-class))
+        (newarrayI (numT) (numI 0) (numI 0)))
+  (test (check-for-this-arg (arrayrefI (numI 0) (numI 0))
+                           (list posn-t-class))
+        (arrayrefI (numI 0) (numI 0)))
+  (test (check-for-this-arg (arraysetI (numI 0) (numI 1) (numI 1))
+                           empty)
+        (arraysetI (numI 0) (numI 1) (numI 1)))
+  (test (check-for-this-arg (newI 'posn3 empty)
+                           (list posn3-t-class))
+        (newI 'posn3 empty)))
+
+;; ----------------------------------------
 (define typecheck-expr : (ExprI (listof ClassT) Type Type -> Type)
   (lambda (expr t-classes arg-type this-type)
     (local [(define (recur expr)
