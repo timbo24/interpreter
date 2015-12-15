@@ -156,7 +156,7 @@
         (numV 3)))
 
 ;; ----------------------------------------
-;; #2 #10 
+;; #2 #5 #10 
 (define (subclass? obj-class-name class-name classes)
   (cond
     [(equal? obj-class-name class-name) #t]

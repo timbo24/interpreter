@@ -76,7 +76,8 @@
 ;; ----------------------------------------
 
 (define (interp-t-prog [classes : (listof s-expression)] [a : s-expression]) : s-expression
-  (let ([v (interp-t (parse a)
+  (let ([v (interp-t (initialize-fields (parse a)
+                                        (map parse-t-class classes))
                      (map parse-t-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
@@ -108,8 +109,8 @@
                         {+ {get this z} 
                            {super mdist arg}}}})
         
-        '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
-       '18)
+        '{send {new posn3D} addDist {new posn}})
+       '0)
   (test (interp-t-prog 
         (list
          '{class test extends object
@@ -120,7 +121,7 @@
              {arrayset {get this x} arg 0}}
             {ref : num -> num
                  {arrayref {get this x} arg}}})
-        '{send {new test {newarray num 1 1}} new 1})
+        '{send {new test} new 1})
         `array)
   (test (interp-t-prog 
         (list
@@ -140,5 +141,5 @@
              {arrayset {get this x} arg 0}}
             {ref : num -> posn
              {arrayref {get this x} arg}}})
-        '{send {new test {newarray posn 1 null}} ref 0})
+        '{send {new test} ref 0})
         `null))
